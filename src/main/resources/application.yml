@@ -1,0 +1,14 @@
+# Server Config
+server:
+  contextPath: /access/
+  port: 8090
+  maxHttpHeaderSize: 131072
+
+# Datasource Config
+spring:
+  http:
+    multipart:
+      enabled: true
+      max-file-size: 1073741824
+      max-request-size: 1073741824
+

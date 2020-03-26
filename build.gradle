@@ -1,0 +1,55 @@
+apply plugin: "java"
+apply plugin: "idea"
+apply plugin: "eclipse"
+apply plugin: "jacoco"
+apply plugin: 'org.springframework.boot'
+
+group = 'com.potato'
+version = '0.0.1-SNAPSHOT'
+compileJava.options.encoding = "UTF-8"
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+repositories {
+    mavenCentral()
+}
+
+buildscript {
+    ext {
+        springBootVersion = '1.5.9.RELEASE'
+    }
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath("org.springframework.boot:spring-boot-gradle-plugin:${springBootVersion}")
+    }
+}
+
+dependencies {
+    compile("org.springframework.boot:spring-boot-starter-web")
+    compile("org.springframework.boot:spring-boot-starter-jdbc")
+    compile("org.springframework.boot:spring-boot-starter-data-jpa")
+    // jackson
+    compile "com.fasterxml.jackson.datatype:jackson-datatype-hibernate4:2.8.10"
+     
+    compile "com.jayway.jsonpath:json-path:2.2.0"
+    // schedule
+    def springVersion = '4.3.13.RELEASE'
+    compile "org.springframework:spring-context:${springVersion}"
+    compile "org.springframework:spring-context-support:${springVersion}"
+    // http
+    compile('org.apache.httpcomponents:httpclient:4.5.3')
+    compile('org.apache.httpcomponents:httpcore:4.4.8')
+     
+    compile('com.google.code.gson:gson:2.6.2')
+    compile('commons-codec:commons-codec:1.10')
+    runtime("org.springframework.boot:spring-boot-devtools:${springBootVersion}")
+    compileOnly('org.projectlombok:lombok:1.16.18')
+    compile "io.jsonwebtoken:jjwt:0.7.0"
+    compile('org.apache.commons:commons-collections4:4.1')
+    compile "org.apache.commons:commons-lang3:3.7"
+    testCompile("org.springframework.boot:spring-boot-starter-test:${springBootVersion}")
+    testCompile('junit:junit:4.12')
+    testCompile('org.mockito:mockito-core:1.+')
+}
