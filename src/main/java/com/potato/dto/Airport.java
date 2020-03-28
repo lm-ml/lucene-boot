@@ -5,7 +5,7 @@ import lombok.Data;
 @Data
 public class Airport {
 
-    private long airportID;
+    private long airportId;
     private String name;//名称
     private String city;//城市
     private String country;//国家
