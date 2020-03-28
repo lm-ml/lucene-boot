@@ -124,13 +124,13 @@ public class PermissionServiceImpl implements PermissionService {
             IndexReader reader = DirectoryReader.open(directory);//读索引
             IndexSearcher indexSearcher = new IndexSearcher(reader);
             BooleanQuery query = b.build();
-            TopDocs topDocs = indexSearcher.search(query, 100);
+            TopDocs topDocs = indexSearcher.search(query, Integer.MAX_VALUE);
             for (ScoreDoc scoreDoc : topDocs.scoreDocs) {
                 Airport airport = getAirport(indexSearcher.doc(scoreDoc.doc).get("lineData"));
                 airports.add(airport);
             }
-            indexWriter.close();
             reader.close();
+            indexWriter.close();
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -138,64 +138,59 @@ public class PermissionServiceImpl implements PermissionService {
     }
 
     /**
-     * @param sourceAirport      源城市
-     * @param destinationAirport 目的地城市
+     * @param sourceCity      源城市
+     * @param destinationCity 目的地城市
      * @return
      */
     @Override
-    public List<AirlineRoute> getAirlineRoutes(String sourceAirport, String destinationAirport) {
+    public List<AirlineRoute> getAirlineRoutes(String sourceCity, String destinationCity) {
+        List<AirlineRoute> airlineRoutes = new ArrayList<>();
         try {
-            BooleanQuery.Builder builder = new BooleanQuery.Builder();
-            TermQuery sourceAirportQuery = null;
-            TermQuery sourceAirportIdQuery = null;
-            if (!StringUtils.isEmpty(sourceAirport)) {
-                sourceAirport = sourceAirport.toLowerCase();
-                sourceAirportQuery = new TermQuery(new Term("sourceAirport", sourceAirport));
-                sourceAirportIdQuery = new TermQuery(new Term("sourceAirportId", sourceAirport));
+            if (StringUtils.isEmpty(sourceCity) && StringUtils.isEmpty(destinationCity)) {
+                return null;
             }
-            TermQuery destinationAirportIdQuery = null;
-            TermQuery destinationAirportQuery = null;
-            if (!StringUtils.isEmpty(destinationAirport)) {
-                destinationAirport = destinationAirport.toLowerCase();
-                destinationAirportQuery = new TermQuery(new Term("destinationAirport", destinationAirport));
-                destinationAirportIdQuery = new TermQuery(new Term("destinationAirportId", destinationAirport));
+            List<Airport> sourceCityAirports = null;
+            if (!StringUtils.isEmpty(sourceCity)) {
+                sourceCityAirports = getAirports(null, null, null, null, sourceCity, null);
             }
-            if (!StringUtils.isEmpty(sourceAirport) && !StringUtils.isEmpty(destinationAirport)) {
-                // (sourceAirport == '' or sourceAirportId = '') and (destinationAirport == '' or destinationAirportId = '')
-                BooleanQuery.Builder caseOne = new BooleanQuery.Builder();
-                caseOne.add(destinationAirportQuery, BooleanClause.Occur.SHOULD);
-                caseOne.add(destinationAirportIdQuery, BooleanClause.Occur.SHOULD);
-                BooleanQuery oneBuild = caseOne.build();
-                builder.add(oneBuild, BooleanClause.Occur.MUST);
-                BooleanQuery.Builder caseTwo = new BooleanQuery.Builder();
-                caseTwo.add(sourceAirportQuery, BooleanClause.Occur.SHOULD);
-                caseTwo.add(sourceAirportIdQuery, BooleanClause.Occur.SHOULD);
-                BooleanQuery twoBuild = caseTwo.build();
-                builder.add(twoBuild, BooleanClause.Occur.MUST);
-            } else if (!StringUtils.isEmpty(destinationAirport)) {
-                // (destinationAirport == '' or destinationAirportId = '')
-                builder.add(destinationAirportQuery, BooleanClause.Occur.SHOULD);
-                builder.add(destinationAirportIdQuery, BooleanClause.Occur.SHOULD);
-            } else if (!StringUtils.isEmpty(sourceAirport)) {
-                // (sourceAirport == '' or sourceAirportId = '')
-                builder.add(sourceAirportQuery, BooleanClause.Occur.SHOULD);
-                builder.add(sourceAirportIdQuery, BooleanClause.Occur.SHOULD);
-            } else {
+            List<Airport> destinationCityAirports = null;
+            if (!StringUtils.isEmpty(destinationCity)) {
+                destinationCityAirports = getAirports(null, null, null, null, destinationCity, null);
+            }
+            if ((null == sourceCityAirports || sourceCityAirports.isEmpty()) && (null == destinationCityAirports || destinationCityAirports.isEmpty())) {
                 return null;
             }
             getIndexWriter();
             indexWriter.deleteAll(); //原始文件
-            List<Document> documents = getRouteDocument(getFileByResourceName("routes.dat"));
-            if (null != documents && !documents.isEmpty()) {
+            List<Document> routeDocuments = getRouteDocument(getFileByResourceName("routes.dat"));
+            if (null != routeDocuments && routeDocuments.size() > 0) {
+                BooleanQuery.Builder builder = new BooleanQuery.Builder();
+                //TODO 需要类似SQL中IN的语法
+                if (null != sourceCityAirports && !sourceCityAirports.isEmpty()) {
+                    BooleanQuery.Builder sourceCityBuilder = new BooleanQuery.Builder();
+                    for (Airport sourceCityAirport : sourceCityAirports) {
+                        TermQuery termQuery = new TermQuery(new Term("sourceAirportId", String.valueOf(sourceCityAirport.getAirportId())));
+                        sourceCityBuilder.add(termQuery, BooleanClause.Occur.SHOULD);
+                    }
+                    builder.add(sourceCityBuilder.build(), BooleanClause.Occur.MUST);
+                }
+                //TODO 需要类似SQL中IN的语法
+                if (null != destinationCityAirports && !destinationCityAirports.isEmpty()) {
+                    BooleanQuery.Builder destinationCityBuilder = new BooleanQuery.Builder();
+                    for (Airport destinationCityAirport : destinationCityAirports) {
+                        TermQuery termQuery = new TermQuery(new Term("destinationAirportId", String.valueOf(destinationCityAirport.getAirportId())));
+                        destinationCityBuilder.add(termQuery, BooleanClause.Occur.SHOULD);
+                    }
+                    builder.add(destinationCityBuilder.build(), BooleanClause.Occur.MUST);
+                }
                 //创建索引，并写入索引库
-                indexWriter.addDocuments(documents);
+                indexWriter.addDocuments(routeDocuments);
                 indexWriter.commit();
                 // 读取索引库索引
                 IndexReader reader = DirectoryReader.open(directory);//读索引
                 IndexSearcher indexSearcher = new IndexSearcher(reader);
                 BooleanQuery query = builder.build();
-                TopDocs topDocs = indexSearcher.search(query, 100);
-                System.out.println("匹配查询到" + topDocs.totalHits + "个记录");
+                TopDocs topDocs = indexSearcher.search(query, Integer.MAX_VALUE);
                 Map<String, ArrayList<Route>> airlineIdMap = new HashMap();
                 for (ScoreDoc scoreDoc : topDocs.scoreDocs) {
                     Route route = getRoute(indexSearcher.doc(scoreDoc.doc).get("lineData"));
@@ -228,8 +223,7 @@ public class PermissionServiceImpl implements PermissionService {
                     }
                     BooleanQuery airlinesQuery = airlineBuilder.build();
                     IndexSearcher indexAirlineSearcher = new IndexSearcher(reader);
-                    TopDocs topAirlineDocs = indexAirlineSearcher.search(airlinesQuery, 100);
-                    System.out.println("匹配查询到" + topAirlineDocs.totalHits + "个记录");
+                    TopDocs topAirlineDocs = indexAirlineSearcher.search(airlinesQuery, Integer.MAX_VALUE);
                     Map<String, Airline> airlineMap = new HashMap();
                     for (ScoreDoc scoreDoc : topAirlineDocs.scoreDocs) {
                         Airline airline = getAirline(indexAirlineSearcher.doc(scoreDoc.doc).get("lineData"));
@@ -238,16 +232,12 @@ public class PermissionServiceImpl implements PermissionService {
                             airlineMap.put(String.valueOf(airlineId), airline);
                         }
                     }
-                    List<AirlineRoute> airlineRoutes = new ArrayList<>();
                     for (String airlineIdKey : airlineIdKeys) {
                         AirlineRoute airlineRoute = new AirlineRoute();
                         airlineRoute.setAirline(airlineMap.get(airlineIdKey));
                         airlineRoute.setRoutes(airlineIdMap.get(airlineIdKey));
                         airlineRoutes.add(airlineRoute);
                     }
-                    return airlineRoutes;
-                } else {
-                    log.warn("不存在航空公司信息");
                 }
                 reader.close();
             }
@@ -255,7 +245,7 @@ public class PermissionServiceImpl implements PermissionService {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        return null;
+        return airlineRoutes;
     }
 
     List<Document> getDocumentFromFile(File fileResource) throws IOException {

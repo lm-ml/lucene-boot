@@ -34,9 +34,9 @@ public class HealthCheckController {
     }
 
     @GetMapping(value = "/airlineRoutes")
-    public ResponseEntity getAirlineRoutes(@RequestParam(value = "sourceAirport", required = false) String sourceAirport,
-                                           @RequestParam(value = "destinationAirport", required = false) String destinationAirport) {
-        List<AirlineRoute> airlineRoutes = this.permissionService.getAirlineRoutes(sourceAirport, destinationAirport);
+    public ResponseEntity getAirlineRoutes(@RequestParam(value = "sourceCity", required = false) String sourceCity,
+                                           @RequestParam(value = "destinationCity", required = false) String destinationCity) {
+        List<AirlineRoute> airlineRoutes = this.permissionService.getAirlineRoutes(sourceCity, destinationCity);
         return new ResponseEntity(airlineRoutes, HttpStatus.OK);
     }
 
