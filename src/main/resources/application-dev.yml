@@ -1,8 +1,8 @@
 # Server Config
 server:
   servlet:
-    contextPath: /access/
-  port: 8090
+    contextPath: /lucene/
+  port: 8080
   maxHttpHeaderSize: 131072
 
 
