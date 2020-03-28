@@ -5,23 +5,19 @@ import com.flight.dto.AirlineRoute;
 import com.flight.dto.Airport;
 import com.flight.dto.Route;
 import com.flight.service.FlightService;
+import com.flight.service.LuceneService;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.lucene.analysis.Analyzer;
-import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.TextField;
-import org.apache.lucene.index.*;
+import org.apache.lucene.index.DirectoryReader;
+import org.apache.lucene.index.IndexReader;
+import org.apache.lucene.index.Term;
 import org.apache.lucene.search.*;
-import org.apache.lucene.store.Directory;
-import org.apache.lucene.store.RAMDirectory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.core.io.Resource;
-import org.springframework.core.io.ResourceLoader;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
-import javax.annotation.PostConstruct;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
@@ -33,49 +29,8 @@ import java.util.*;
 public class FlightServiceImpl implements FlightService {
 
     @Autowired
-    private ResourceLoader resourceLoader;
-    static Directory directory;
-    static IndexWriter indexWriter;
+    private LuceneService luceneService;
 
-    @PostConstruct
-    void init() throws IOException {
-        try {
-            directory = new RAMDirectory();
-            // 标准分词器
-            Analyzer analyzer = new StandardAnalyzer();
-            IndexWriterConfig config = new IndexWriterConfig(analyzer);
-            //1.创建IndexWriter
-            indexWriter = new IndexWriter(directory, config);
-        } finally {
-            indexWriter.close();
-        }
-    }
-
-    void getIndexWriter() throws IOException {
-        if (!indexWriter.isOpen()) {
-            Analyzer analyzer = new StandardAnalyzer();
-            IndexWriterConfig config = new IndexWriterConfig(analyzer);
-            indexWriter = new IndexWriter(directory, config);
-        }
-    }
-
-    /**
-     * 根据资源名称读取文件
-     *
-     * @param resourceName
-     * @return
-     * @throws IOException
-     */
-    File getFileByResourceName(String resourceName) throws IOException {
-        if (StringUtils.isEmpty(resourceName)) {
-            return null;
-        }
-        Resource resource = resourceLoader.getResource("classpath:data/" + resourceName);
-        if (resource.exists()) {
-            return resource.getFile();
-        }
-        return null;
-    }
 
     /**
      * @param name      查询机场名称，支持模糊查询
@@ -90,14 +45,16 @@ public class FlightServiceImpl implements FlightService {
     public List<Airport> getAirports(String name, String iATA, Double latitude, Double longitude, String city, String country) {
         List<Airport> airports = new ArrayList<>();
         try {
-            getIndexWriter();
-            indexWriter.deleteAll(); //原始文件
-            List<Document> documents = getDocumentFromFile(getFileByResourceName("airports.dat"));
+            luceneService.getIndexWriter();
+            luceneService.deleteAll();
+            //原始文件
+            File airportsResource = luceneService.getFileByResourceName("airports.dat");
+            List<Document> documents = getDocumentFromFile(airportsResource);
             BooleanQuery.Builder b = new BooleanQuery.Builder();
             if (null != documents && !documents.isEmpty()) {
                 //创建索引，并写入索引库
-                indexWriter.addDocuments(documents);
-                indexWriter.commit();
+                luceneService.addDocuments(documents);
+                luceneService.commit();
             }
             if (!StringUtils.isEmpty(name)) {
                 name = name.toLowerCase();
@@ -121,7 +78,7 @@ public class FlightServiceImpl implements FlightService {
             }
 
             // 读取索引库索引
-            IndexReader reader = DirectoryReader.open(directory);//读索引
+            IndexReader reader = DirectoryReader.open(luceneService.getDirectory());//读索引
             IndexSearcher indexSearcher = new IndexSearcher(reader);
             BooleanQuery query = b.build();
             TopDocs topDocs = indexSearcher.search(query, Integer.MAX_VALUE);
@@ -130,7 +87,7 @@ public class FlightServiceImpl implements FlightService {
                 airports.add(airport);
             }
             reader.close();
-            indexWriter.close();
+            luceneService.closeIndexWriter();
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -160,9 +117,10 @@ public class FlightServiceImpl implements FlightService {
             if ((null == sourceCityAirports || sourceCityAirports.isEmpty()) && (null == destinationCityAirports || destinationCityAirports.isEmpty())) {
                 return null;
             }
-            getIndexWriter();
-            indexWriter.deleteAll(); //原始文件
-            List<Document> routeDocuments = getRouteDocument(getFileByResourceName("routes.dat"));
+            luceneService.getIndexWriter();
+            luceneService.deleteAll(); //原始文件
+            File routesResource = luceneService.getFileByResourceName("routes.dat");
+            List<Document> routeDocuments = getRouteDocument(routesResource);
             if (null != routeDocuments && routeDocuments.size() > 0) {
                 BooleanQuery.Builder builder = new BooleanQuery.Builder();
                 //TODO 需要类似SQL中IN的语法
@@ -184,10 +142,10 @@ public class FlightServiceImpl implements FlightService {
                     builder.add(destinationCityBuilder.build(), BooleanClause.Occur.MUST);
                 }
                 //创建索引，并写入索引库
-                indexWriter.addDocuments(routeDocuments);
-                indexWriter.commit();
+                luceneService.addDocuments(routeDocuments);
+                luceneService.commit();
                 // 读取索引库索引
-                IndexReader reader = DirectoryReader.open(directory);//读索引
+                IndexReader reader = DirectoryReader.open(luceneService.getDirectory());//读索引
                 IndexSearcher indexSearcher = new IndexSearcher(reader);
                 BooleanQuery query = builder.build();
                 TopDocs topDocs = indexSearcher.search(query, Integer.MAX_VALUE);
@@ -204,7 +162,7 @@ public class FlightServiceImpl implements FlightService {
                         airlineIdMap.put(airlineId, routes);
                     }
                 }
-                indexWriter.deleteAll();
+                luceneService.deleteAll();
                 Set<String> airlineIdKeys = airlineIdMap.keySet();
                 if (null != airlineIdKeys && airlineIdKeys.size() > 0) {
                     //要查找的字符串数组
@@ -214,12 +172,13 @@ public class FlightServiceImpl implements FlightService {
                         TermQuery termQuery = new TermQuery(new Term("airlineId", airlineIdKey));
                         airlineBuilder.add(termQuery, BooleanClause.Occur.SHOULD);
                     }
-                    List<Document> airlinesDocuments = getAirlineDocument(getFileByResourceName("airlines.dat"));
+                    File airlinesResource = luceneService.getFileByResourceName("airlines.dat");
+                    List<Document> airlinesDocuments = getAirlineDocument(airlinesResource);
                     if (null != airlinesDocuments && !airlinesDocuments.isEmpty()) {
                         //创建索引，并写入索引库
-                        indexWriter.addDocuments(airlinesDocuments);
-                        indexWriter.commit();
-                        reader = DirectoryReader.open(directory);//读索引
+                        luceneService.addDocuments(airlinesDocuments);
+                        luceneService.commit();
+                        reader = DirectoryReader.open(luceneService.getDirectory());//读索引
                     }
                     BooleanQuery airlinesQuery = airlineBuilder.build();
                     IndexSearcher indexAirlineSearcher = new IndexSearcher(reader);
@@ -241,7 +200,7 @@ public class FlightServiceImpl implements FlightService {
                 }
                 reader.close();
             }
-            indexWriter.close();
+            luceneService.closeIndexWriter();
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -263,16 +222,11 @@ public class FlightServiceImpl implements FlightService {
                         //域的名称 域的内容 是否存储
                         //创建Document 对象
                         Document document = new Document();
-                        Field lineDataField = new TextField("lineData", lineData, Field.Store.YES);
-                        document.add(lineDataField);
-                        Field nameField = new TextField("name", airport.getName().toLowerCase(), Field.Store.YES);
-                        document.add(nameField);
-                        Field cityField = new TextField("city", airport.getCity().toLowerCase(), Field.Store.YES);
-                        document.add(cityField);
-                        Field countryField = new TextField("country", airport.getCountry().toLowerCase(), Field.Store.YES);
-                        document.add(countryField);
-                        Field iATAField = new TextField("iATA", airport.getIATA().toLowerCase(), Field.Store.YES);
-                        document.add(iATAField);
+                        document.add(new TextField("lineData", lineData, Field.Store.YES));
+                        document.add(new TextField("name", airport.getName().toLowerCase(), Field.Store.YES));
+                        document.add(new TextField("city", airport.getCity().toLowerCase(), Field.Store.YES));
+                        document.add(new TextField("country", airport.getCountry().toLowerCase(), Field.Store.YES));
+                        document.add(new TextField("iATA", airport.getIATA().toLowerCase(), Field.Store.YES));
                         Field longitudeField = new TextField("longitude-latitude", airport.getLongitude() + " " + airport.getLatitude(), Field.Store.YES);
                         document.add(longitudeField);
                         documents.add(document);
@@ -355,7 +309,6 @@ public class FlightServiceImpl implements FlightService {
                         //域的名称 域的内容 是否存储
                         Field lineDataField = new TextField("lineData", lineData, Field.Store.YES);
                         Field airlineIdField = new TextField("airlineId", String.valueOf(airline.getAirlineId()), Field.Store.YES);
-
                         //创建Document 对象
                         Document document = new Document();
                         document.add(lineDataField);
