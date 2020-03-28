@@ -1,4 +1,4 @@
-package com.potato.dto;
+package com.flight.dto;
 
 import lombok.Data;
 

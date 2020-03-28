@@ -1,10 +1,10 @@
-package com.potato.commons.config;
+package com.flight.commons.config;
 
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
-import com.potato.commons.interceptor.AuthInterceptor;
+import com.flight.commons.interceptor.AuthInterceptor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.web.servlet.ServletRegistrationBean;
 import org.springframework.context.annotation.Bean;
@@ -37,7 +37,7 @@ public class MVCConfig extends WebMvcConfigurerAdapter {
      */
     protected ServletRegistrationBean servletRegistrationBean() {
         AnnotationConfigWebApplicationContext applicationContext = new AnnotationConfigWebApplicationContext();
-        applicationContext.scan(new String[]{"com.potato.controller"});
+        applicationContext.scan(new String[]{"com.flight.controller"});
         DispatcherServlet dispatcherServlet = new DispatcherServlet(applicationContext);
         ServletRegistrationBean registrationBean = new ServletRegistrationBean(dispatcherServlet, new String[0]);
         registrationBean.setLoadOnStartup(1);

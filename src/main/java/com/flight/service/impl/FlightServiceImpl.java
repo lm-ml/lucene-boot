@@ -1,10 +1,10 @@
-package com.potato.service.impl;
+package com.flight.service.impl;
 
-import com.potato.dto.Airline;
-import com.potato.dto.AirlineRoute;
-import com.potato.dto.Airport;
-import com.potato.dto.Route;
-import com.potato.service.PermissionService;
+import com.flight.dto.Airline;
+import com.flight.dto.AirlineRoute;
+import com.flight.dto.Airport;
+import com.flight.dto.Route;
+import com.flight.service.FlightService;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
@@ -30,7 +30,7 @@ import java.util.*;
 
 @Service
 @Slf4j
-public class PermissionServiceImpl implements PermissionService {
+public class FlightServiceImpl implements FlightService {
 
     @Autowired
     private ResourceLoader resourceLoader;

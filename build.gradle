@@ -4,7 +4,7 @@ apply plugin: "eclipse"
 apply plugin: "jacoco"
 apply plugin: "org.springframework.boot"
 
-group = "com.potato"
+group = "com.flight"
 version = "0.0.1-SNAPSHOT"
 compileJava.options.encoding = "UTF-8"
 sourceCompatibility = 1.8

@@ -1,8 +1,8 @@
-package com.potato.controller;
+package com.flight.controller;
 
-import com.potato.dto.AirlineRoute;
-import com.potato.dto.Airport;
-import com.potato.service.PermissionService;
+import com.flight.dto.AirlineRoute;
+import com.flight.dto.Airport;
+import com.flight.service.FlightService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -16,11 +16,11 @@ import java.util.List;
 
 @Slf4j
 @RestController
-@RequestMapping(value = "/health")
-public class HealthCheckController {
+@RequestMapping(value = "/flight")
+public class FlightController {
 
     @Autowired
-    private PermissionService permissionService;
+    private FlightService flightService;
 
     @GetMapping(value = "/airports")
     public ResponseEntity getAirports(@RequestParam(value = "name", required = false) String name,
@@ -29,14 +29,14 @@ public class HealthCheckController {
                                       @RequestParam(value = "longitude", required = false) Double longitude,
                                       @RequestParam(value = "city", required = false) String city,
                                       @RequestParam(value = "country", required = false) String country) {
-        List<Airport> airportList = this.permissionService.getAirports(name, iATA, latitude, longitude, city, country);
+        List<Airport> airportList = this.flightService.getAirports(name, iATA, latitude, longitude, city, country);
         return new ResponseEntity(airportList, HttpStatus.OK);
     }
 
     @GetMapping(value = "/airlineRoutes")
     public ResponseEntity getAirlineRoutes(@RequestParam(value = "sourceCity", required = false) String sourceCity,
                                            @RequestParam(value = "destinationCity", required = false) String destinationCity) {
-        List<AirlineRoute> airlineRoutes = this.permissionService.getAirlineRoutes(sourceCity, destinationCity);
+        List<AirlineRoute> airlineRoutes = this.flightService.getAirlineRoutes(sourceCity, destinationCity);
         return new ResponseEntity(airlineRoutes, HttpStatus.OK);
     }
 

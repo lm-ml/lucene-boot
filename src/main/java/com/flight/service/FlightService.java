@@ -1,11 +1,11 @@
-package com.potato.service;
+package com.flight.service;
 
-import com.potato.dto.AirlineRoute;
-import com.potato.dto.Airport;
+import com.flight.dto.AirlineRoute;
+import com.flight.dto.Airport;
 
 import java.util.List;
 
-public interface PermissionService {
+public interface FlightService {
 
     List<Airport> getAirports(String name, String iATA, Double latitude, Double longitude, String city, String country);
 
