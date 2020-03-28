@@ -1,5 +1,6 @@
 package com.potato.service.impl;
 
+import com.potato.dto.AirlineRoute;
 import com.potato.dto.Airport;
 import com.potato.service.PermissionService;
 import lombok.extern.slf4j.Slf4j;
@@ -102,8 +103,8 @@ public class PermissionServiceImpl implements PermissionService {
                         Field cityField = new TextField("city", airport.getCity().toLowerCase(), Field.Store.YES);
                         Field countryField = new TextField("country", airport.getCountry().toLowerCase(), Field.Store.YES);
                         Field iATAField = new TextField("iATA", airport.getIATA().toLowerCase(), Field.Store.YES);
-                        Field longitudeField = new TextField("longitude", String.valueOf(airport.getLongitude()), Field.Store.YES);
-                        Field latitudeField = new TextField("latitude", String.valueOf(airport.getLatitude()), Field.Store.YES);
+                        Field longitudeField = new TextField("longitude-latitude",
+                                airport.getLongitude()+ " " + airport.getLatitude(), Field.Store.YES);
 
                         //创建Document 对象
                         Document document = new Document();
@@ -113,15 +114,11 @@ public class PermissionServiceImpl implements PermissionService {
                         document.add(countryField);
                         document.add(iATAField);
                         document.add(longitudeField);
-                        document.add(latitudeField);
                         documents.add(document);
                     } else {
-                        log.warn("有误数据：{}", lineData);
+                       // log.warn("有误数据,待处理：{}", lineData);
                     }
-
-
                 }
-
             } catch (Exception e) {
                 e.printStackTrace();
             } finally {
@@ -129,8 +126,6 @@ public class PermissionServiceImpl implements PermissionService {
                     br.close();
                 }
             }
-
-
             return documents;
         }
         return documents;
@@ -218,6 +213,7 @@ public class PermissionServiceImpl implements PermissionService {
      */
     @Override
     public List<Airport> getAirports(String name, String iATA, Double latitude, Double longitude, String city, String country) {
+        List<Airport> airports = new ArrayList<>();
         try {
             indexWriter.deleteAll(); //原始文件
             List<Document> documents = getDocumentFromFile(getFileByResourceName("airports.dat"));
@@ -256,12 +252,17 @@ public class PermissionServiceImpl implements PermissionService {
             System.out.println("匹配查询到" + topDocs.totalHits + "个记录");
             for (ScoreDoc scoreDoc : topDocs.scoreDocs) {
                 Airport airport = getAirport(indexSearcher.doc(scoreDoc.doc).get("lineData"));
-                System.out.println(airport.toString());//打印Document的fileName属性
+                airports.add(airport);
             }
             reader.close();
         } catch (IOException e) {
             e.printStackTrace();
         }
+        return airports;
+    }
+
+    @Override
+    public List<AirlineRoute> getAirlineRoutes(String sourceAirport, String destinationAirport) {
         return null;
     }
 

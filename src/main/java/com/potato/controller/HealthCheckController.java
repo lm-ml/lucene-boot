@@ -1,5 +1,6 @@
 package com.potato.controller;
 
+import com.potato.dto.AirlineRoute;
 import com.potato.dto.Airport;
 import com.potato.service.PermissionService;
 import lombok.extern.slf4j.Slf4j;
@@ -37,6 +38,13 @@ public class HealthCheckController {
                                       @RequestParam(value = "country", required = false) String country) {
         List<Airport> airportList = this.permissionService.getAirports(name, iATA, latitude, longitude, city, country);
         return new ResponseEntity(airportList, HttpStatus.OK);
+    }
+
+    @GetMapping(value = "/airports")
+    public ResponseEntity getAirlineRoutes(@RequestParam(value = "sourceAirport", required = false) String sourceAirport,
+                                           @RequestParam(value = "destinationAirport", required = false) String destinationAirport) {
+        List<AirlineRoute> airlineRoutes = this.permissionService.getAirlineRoutes(sourceAirport, destinationAirport);
+        return new ResponseEntity(airlineRoutes, HttpStatus.OK);
     }
 
 }
