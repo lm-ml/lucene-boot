@@ -60,7 +60,9 @@ public class LuceneServiceImpl implements LuceneService {
 
     @Override
     public void closeIndexWriter() throws IOException {
-        indexWriter.close();
+        if (null != indexWriter && indexWriter.isOpen()) {
+            indexWriter.close();
+        }
     }
 
     /**
@@ -77,7 +79,7 @@ public class LuceneServiceImpl implements LuceneService {
             return null;
         }
         Resource resource = resourceLoader.getResource("classpath:data/" + resourceName);
-        if (resource.exists()) {
+        if (null != resource && resource.exists()) {
             return resource.getFile();
         }
         return null;

@@ -14,7 +14,6 @@ import org.springframework.util.StringUtils;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -23,7 +22,7 @@ import java.util.List;
 public class ConvertServiceImpl implements ConvertService {
 
     @Override
-    public List<Document> convertAirportFile(File fileResource) throws IOException {
+    public List<Document> convertAirportFile(File fileResource) throws Exception {
         List<Document> documents = new ArrayList<>();
         if (null != fileResource && fileResource.exists()) {
             // 读取文件内容
@@ -39,10 +38,10 @@ public class ConvertServiceImpl implements ConvertService {
                         //创建Document 对象
                         Document document = new Document();
                         document.add(new TextField("lineData", lineData, Field.Store.YES));
-                        document.add(new TextField("name", airport.getName().toLowerCase(), Field.Store.YES));
-                        document.add(new TextField("city", airport.getCity().toLowerCase(), Field.Store.YES));
-                        document.add(new TextField("country", airport.getCountry().toLowerCase(), Field.Store.YES));
-                        document.add(new TextField("iATA", airport.getIATA().toLowerCase(), Field.Store.YES));
+                        document.add(new TextField("name", toLowerCaseValue(airport.getName()), Field.Store.YES));
+                        document.add(new TextField("city", toLowerCaseValue(airport.getCity()), Field.Store.YES));
+                        document.add(new TextField("country", toLowerCaseValue(airport.getCountry()), Field.Store.YES));
+                        document.add(new TextField("iATA", toLowerCaseValue(airport.getIATA()), Field.Store.YES));
                         Field longitudeField = new TextField("longitude-latitude", airport.getLongitude() + " " + airport.getLatitude(), Field.Store.YES);
                         document.add(longitudeField);
                         documents.add(document);
@@ -50,20 +49,15 @@ public class ConvertServiceImpl implements ConvertService {
                         // log.warn("有误数据,待处理：{}", lineData);
                     }
                 }
-            } catch (Exception e) {
-                e.printStackTrace();
             } finally {
-                if (null != burReader) {
-                    burReader.close();
-                }
+                burReader.close();
             }
-            return documents;
         }
         return documents;
     }
 
     @Override
-    public List<Document> convertRouteFile(File fileResource) throws IOException {
+    public List<Document> convertRouteFile(File fileResource) throws Exception {
         List<Document> documents = new ArrayList<>();
         if (null != fileResource && fileResource.exists()) {
             // 读取文件内容
@@ -77,13 +71,13 @@ public class ConvertServiceImpl implements ConvertService {
                     if (null != route) {
                         //域的名称 域的内容 是否存储
                         Field lineDataField = new TextField("lineData", lineData, Field.Store.YES);
-                        Field airlineField = new TextField("airline", route.getAirline().toLowerCase(), Field.Store.YES);
+                        Field airlineField = new TextField("airline", toLowerCaseValue(route.getAirline()), Field.Store.YES);
                         Field airlineIdField = new TextField("airlineId", route.getAirlineId(), Field.Store.YES);
-                        Field sourceAirportField = new TextField("sourceAirport", route.getSourceAirport().toLowerCase(), Field.Store.YES);
+                        Field sourceAirportField = new TextField("sourceAirport", toLowerCaseValue(route.getSourceAirport()), Field.Store.YES);
                         Field sourceAirportIdField = new TextField("sourceAirportId", route.getSourceAirportId(), Field.Store.YES);
-                        Field destinationAirportField = new TextField("destinationAirport", route.getDestinationAirport().toLowerCase(), Field.Store.YES);
+                        Field destinationAirportField = new TextField("destinationAirport", toLowerCaseValue(route.getDestinationAirport()), Field.Store.YES);
                         Field destinationAirportIdField = new TextField("destinationAirportId", route.getDestinationAirportId(), Field.Store.YES);
-                        Field codeShareField = new TextField("codeShare", route.getCodeShare().toLowerCase(), Field.Store.YES);
+                        Field codeShareField = new TextField("codeShare", toLowerCaseValue(route.getCodeShare()), Field.Store.YES);
                         //创建Document 对象
                         Document document = new Document();
                         document.add(lineDataField);
@@ -99,20 +93,15 @@ public class ConvertServiceImpl implements ConvertService {
                         // log.warn("有误数据,待处理：{}", lineData);
                     }
                 }
-            } catch (Exception e) {
-                e.printStackTrace();
             } finally {
-                if (null != br) {
-                    br.close();
-                }
+                br.close();
             }
-            return documents;
         }
         return documents;
     }
 
     @Override
-    public List<Document> convertAirlineFile(File fileResource) throws IOException {
+    public List<Document> convertAirlineFile(File fileResource) throws Exception {
         List<Document> documents = new ArrayList<>();
         if (null != fileResource && fileResource.exists()) {
             // 读取文件内容
@@ -133,17 +122,12 @@ public class ConvertServiceImpl implements ConvertService {
                         document.add(airlineIdField);
                         documents.add(document);
                     } else {
-                        log.warn("有误数据,待处理：{}", lineData);
+                        //log.warn("有误数据,待处理：{}", lineData);
                     }
                 }
-            } catch (Exception e) {
-                e.printStackTrace();
             } finally {
-                if (null != br) {
-                    br.close();
-                }
+                br.close();
             }
-            return documents;
         }
         return documents;
     }
@@ -155,19 +139,19 @@ public class ConvertServiceImpl implements ConvertService {
             if (null != fieldsData && fieldsData.length == 14) {
                 Airport airport = new Airport();
                 airport.setAirportId(Long.valueOf(fieldsData[0]));
-                airport.setName(fieldsData[1].replaceAll("\"", ""));
-                airport.setCity(fieldsData[2].replaceAll("\"", ""));
-                airport.setCountry(fieldsData[3].replaceAll("\"", ""));
-                airport.setIATA(fieldsData[4].replaceAll("\"", ""));
-                airport.setICAO(fieldsData[5].replaceAll("\"", ""));
+                airport.setName(formatValue(fieldsData[1]));
+                airport.setCity(formatValue(fieldsData[2]));
+                airport.setCountry(formatValue(fieldsData[3]));
+                airport.setIATA(formatValue(fieldsData[4]));
+                airport.setICAO(formatValue(fieldsData[5]));
                 airport.setLatitude(Double.valueOf(fieldsData[6]));
                 airport.setLongitude(Double.valueOf(fieldsData[7]));
-                airport.setAltitude(fieldsData[8].replaceAll("\"", ""));
-                airport.setTimezone(fieldsData[9].replaceAll("\"", ""));
-                airport.setDST(fieldsData[10].replaceAll("\"", ""));
-                airport.setTzDatabaseTimeZone(fieldsData[11].replaceAll("\"", ""));
-                airport.setType(fieldsData[12].replaceAll("\"", ""));
-                airport.setSource(fieldsData[13].replaceAll("\"", ""));
+                airport.setAltitude(formatValue(fieldsData[8]));
+                airport.setTimezone(formatValue(fieldsData[9]));
+                airport.setDST(formatValue(fieldsData[10]));
+                airport.setTzDatabaseTimeZone(formatValue(fieldsData[11]));
+                airport.setType(formatValue(fieldsData[12]));
+                airport.setSource(formatValue(fieldsData[13]));
                 return airport;
             }
         }
@@ -181,14 +165,16 @@ public class ConvertServiceImpl implements ConvertService {
             if (null != fieldsData && fieldsData.length == 8) {
                 Airline airline = new Airline();
                 airline.setAirlineId(Long.valueOf(fieldsData[0]));
-                airline.setName(fieldsData[1].replaceAll("\"", ""));
-                airline.setAlias(fieldsData[2].replaceAll("\"", ""));
-                airline.setIATA(fieldsData[3].replaceAll("\"", ""));
-                airline.setICAO(fieldsData[4].replaceAll("\"", ""));
-                airline.setCallSign(fieldsData[5].replaceAll("\"", ""));
-                airline.setCountry(fieldsData[6].replaceAll("\"", ""));
-                airline.setActive(fieldsData[7].replaceAll("\"", ""));
+                airline.setName(formatValue(fieldsData[1]));
+                airline.setAlias(formatValue(fieldsData[2]));
+                airline.setIATA(formatValue(fieldsData[3]));
+                airline.setICAO(formatValue(fieldsData[4]));
+                airline.setCallSign(formatValue(fieldsData[5]));
+                airline.setCountry(formatValue(fieldsData[6]));
+                airline.setActive(formatValue(fieldsData[7]));
                 return airline;
+            } else {
+                //todo 还有一些正确的数据需要处理
             }
         }
         return null;
@@ -213,6 +199,14 @@ public class ConvertServiceImpl implements ConvertService {
             }
         }
         return null;
+    }
+
+    String formatValue(String value) {
+        return StringUtils.isEmpty(value) ? value : value.replaceAll("\"", "");
+    }
+
+    String toLowerCaseValue(String value) {
+        return StringUtils.isEmpty(value) ? value : value.toLowerCase();
     }
 
 }

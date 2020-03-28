@@ -92,7 +92,7 @@ public class FlightServiceImpl implements FlightService {
             }
             reader.close();
             luceneService.closeIndexWriter();
-        } catch (IOException e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
         return airports;
@@ -205,7 +205,7 @@ public class FlightServiceImpl implements FlightService {
                 reader.close();
             }
             luceneService.closeIndexWriter();
-        } catch (IOException e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
         return airlineRoutes;
