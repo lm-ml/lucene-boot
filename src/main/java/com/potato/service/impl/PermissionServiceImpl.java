@@ -37,33 +37,16 @@ public class PermissionServiceImpl implements PermissionService {
     static IndexWriter indexWriter;
 
     @PostConstruct
-    void init() {
+    void init() throws IOException {
         try {
             directory = new RAMDirectory();
-            Analyzer analyzer = new StandardAnalyzer(); // 标准分词器
+            // 标准分词器
+            Analyzer analyzer = new StandardAnalyzer();
             IndexWriterConfig config = new IndexWriterConfig(analyzer);
             //1.创建IndexWriter
             indexWriter = new IndexWriter(directory, config);
-
-//            //原始文件
-//            Document airlinesDocument = getDocumentFromFile(getFileByResourceName("airlines.dat"));
-//            if (null != airlinesDocument) {
-//                //创建索引，并写入索引库
-//                indexWriter.addDocument(airlinesDocument);
-//            }
-//            Document airportsDocument = getDocumentFromFile(getFileByResourceName("airports.dat"));
-//            if (null != airportsDocument) {
-//                //创建索引，并写入索引库
-//                indexWriter.addDocument(airportsDocument);
-//            }
-//            Document routesDocument = getDocumentFromFile(getFileByResourceName("routes.dat"));
-//            if (null != routesDocument) {
-//                //创建索引，并写入索引库
-//                indexWriter.addDocument(routesDocument);
-//            }
-            // indexWriter.close();
-        } catch (IOException e) {
-            e.printStackTrace();
+        } finally {
+            indexWriter.close();
         }
     }
 
@@ -104,7 +87,7 @@ public class PermissionServiceImpl implements PermissionService {
                         Field countryField = new TextField("country", airport.getCountry().toLowerCase(), Field.Store.YES);
                         Field iATAField = new TextField("iATA", airport.getIATA().toLowerCase(), Field.Store.YES);
                         Field longitudeField = new TextField("longitude-latitude",
-                                airport.getLongitude()+ " " + airport.getLatitude(), Field.Store.YES);
+                                airport.getLongitude() + " " + airport.getLatitude(), Field.Store.YES);
 
                         //创建Document 对象
                         Document document = new Document();
@@ -116,7 +99,7 @@ public class PermissionServiceImpl implements PermissionService {
                         document.add(longitudeField);
                         documents.add(document);
                     } else {
-                       // log.warn("有误数据,待处理：{}", lineData);
+                        // log.warn("有误数据,待处理：{}", lineData);
                     }
                 }
             } catch (Exception e) {
@@ -156,44 +139,12 @@ public class PermissionServiceImpl implements PermissionService {
         return null;
     }
 
-    @Override
-    public void save() {
-        getTest("Gisborne");
-    }
-
-
-    void getTest(String keyword) {
-        try {
-            indexWriter.deleteAll();
-            //原始文件
-            List<Document> documents = getDocumentFromFile(getFileByResourceName("airports.dat"));
-            if (null != documents && !documents.isEmpty()) {
-                //创建索引，并写入索引库
-                indexWriter.addDocuments(documents);
-                indexWriter.commit();
-            }
-            BooleanQuery.Builder b = new BooleanQuery.Builder();
-            //b.add(new FuzzyQuery(new Term("name", keyword), 1), BooleanClause.Occur.MUST);
-            b.add(new TermQuery(new Term("sex", "GID".toLowerCase())), BooleanClause.Occur.MUST);
-            BooleanQuery query = b.build();
-            excQuery(query);
-        } catch (IOException e) {
-            e.printStackTrace();
+    void getIndexWriter() throws IOException {
+        if (!indexWriter.isOpen()) {
+            Analyzer analyzer = new StandardAnalyzer();
+            IndexWriterConfig config = new IndexWriterConfig(analyzer);
+            indexWriter = new IndexWriter(directory, config);
         }
-    }
-
-    void excQuery(Query query) throws IOException {
-        IndexReader reader = DirectoryReader.open(directory);//读索引
-        IndexSearcher is = new IndexSearcher(reader);
-        TopDocs hits = is.search(query, 10);//执行搜索
-        System.out.println("匹配查询到" + hits.totalHits + "个记录");
-        for (ScoreDoc scoreDoc : hits.scoreDocs) {
-            Document doc = is.doc(scoreDoc.doc);
-            String lineData = doc.get("lineData");
-            Airport airport = getAirport(lineData);
-            System.out.println(airport.toString());//打印Document的fileName属性
-        }
-        reader.close();
     }
 
     /**
@@ -215,6 +166,7 @@ public class PermissionServiceImpl implements PermissionService {
     public List<Airport> getAirports(String name, String iATA, Double latitude, Double longitude, String city, String country) {
         List<Airport> airports = new ArrayList<>();
         try {
+            getIndexWriter();
             indexWriter.deleteAll(); //原始文件
             List<Document> documents = getDocumentFromFile(getFileByResourceName("airports.dat"));
             BooleanQuery.Builder b = new BooleanQuery.Builder();
@@ -254,6 +206,7 @@ public class PermissionServiceImpl implements PermissionService {
                 Airport airport = getAirport(indexSearcher.doc(scoreDoc.doc).get("lineData"));
                 airports.add(airport);
             }
+            indexWriter.close();
             reader.close();
         } catch (IOException e) {
             e.printStackTrace();

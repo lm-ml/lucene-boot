@@ -22,13 +22,6 @@ public class HealthCheckController {
     @Autowired
     private PermissionService permissionService;
 
-    @GetMapping
-    public ResponseEntity check() {
-        log.info("health");
-        this.permissionService.save();
-        return new ResponseEntity(HttpStatus.OK);
-    }
-
     @GetMapping(value = "/airports")
     public ResponseEntity getAirports(@RequestParam(value = "name", required = false) String name,
                                       @RequestParam(value = "iATA", required = false) String iATA,
@@ -40,7 +33,7 @@ public class HealthCheckController {
         return new ResponseEntity(airportList, HttpStatus.OK);
     }
 
-    @GetMapping(value = "/airports")
+    @GetMapping(value = "/airlineRoutes")
     public ResponseEntity getAirlineRoutes(@RequestParam(value = "sourceAirport", required = false) String sourceAirport,
                                            @RequestParam(value = "destinationAirport", required = false) String destinationAirport) {
         List<AirlineRoute> airlineRoutes = this.permissionService.getAirlineRoutes(sourceAirport, destinationAirport);
