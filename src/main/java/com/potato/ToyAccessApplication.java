@@ -8,6 +8,7 @@ import org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfigurat
 @SpringBootApplication(exclude={DataSourceAutoConfiguration.class, HibernateJpaAutoConfiguration.class})
 public class ToyAccessApplication {
 
+
     public static void main(String[] args) {
         SpringApplication.run(ToyAccessApplication.class, args);
     }
