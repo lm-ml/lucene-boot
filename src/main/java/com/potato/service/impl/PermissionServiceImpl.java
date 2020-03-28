@@ -12,7 +12,6 @@ import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.TextField;
 import org.apache.lucene.index.*;
-import org.apache.lucene.queryparser.classic.MultiFieldQueryParser;
 import org.apache.lucene.search.*;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.RAMDirectory;
@@ -52,6 +51,14 @@ public class PermissionServiceImpl implements PermissionService {
         }
     }
 
+    void getIndexWriter() throws IOException {
+        if (!indexWriter.isOpen()) {
+            Analyzer analyzer = new StandardAnalyzer();
+            IndexWriterConfig config = new IndexWriterConfig(analyzer);
+            indexWriter = new IndexWriter(directory, config);
+        }
+    }
+
     /**
      * 根据资源名称读取文件
      *
@@ -70,98 +77,13 @@ public class PermissionServiceImpl implements PermissionService {
         return null;
     }
 
-    List<Document> getDocumentFromFile(File fileResource) throws IOException {
-        List<Document> documents = new ArrayList<>();
-        if (null != fileResource && fileResource.exists()) {
-            // 读取文件内容
-            BufferedReader br = null;
-            try {
-                //构造一个BufferedReader类来读取文件
-                br = new BufferedReader(new FileReader(fileResource));
-                String lineData = null;
-                while ((lineData = br.readLine()) != null) {
-                    Airport airport = getAirport(lineData);
-                    if (null != airport) {
-                        //域的名称 域的内容 是否存储
-                        Field lineDataField = new TextField("lineData", lineData, Field.Store.YES);
-                        Field nameField = new TextField("name", airport.getName().toLowerCase(), Field.Store.YES);
-                        Field cityField = new TextField("city", airport.getCity().toLowerCase(), Field.Store.YES);
-                        Field countryField = new TextField("country", airport.getCountry().toLowerCase(), Field.Store.YES);
-                        Field iATAField = new TextField("iATA", airport.getIATA().toLowerCase(), Field.Store.YES);
-                        Field longitudeField = new TextField("longitude-latitude",
-                                airport.getLongitude() + " " + airport.getLatitude(), Field.Store.YES);
-
-                        //创建Document 对象
-                        Document document = new Document();
-                        document.add(lineDataField);
-                        document.add(nameField);
-                        document.add(cityField);
-                        document.add(countryField);
-                        document.add(iATAField);
-                        document.add(longitudeField);
-                        documents.add(document);
-                    } else {
-                        // log.warn("有误数据,待处理：{}", lineData);
-                    }
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
-            } finally {
-                if (null != br) {
-                    br.close();
-                }
-            }
-            return documents;
-        }
-        return documents;
-    }
-
-    Airport getAirport(String lineData) {
-        if (!StringUtils.isEmpty(lineData)) {
-            String[] fieldsData = lineData.split(",");
-            if (null != fieldsData && fieldsData.length == 14) {
-                Airport airport = new Airport();
-                airport.setAirportId(Long.valueOf(fieldsData[0]));
-                airport.setName(fieldsData[1].replaceAll("\"", ""));
-                airport.setCity(fieldsData[2].replaceAll("\"", ""));
-                airport.setCountry(fieldsData[3].replaceAll("\"", ""));
-                airport.setIATA(fieldsData[4].replaceAll("\"", ""));
-                airport.setICAO(fieldsData[5].replaceAll("\"", ""));
-                airport.setLatitude(Double.valueOf(fieldsData[6]));
-                airport.setLongitude(Double.valueOf(fieldsData[7]));
-                airport.setAltitude(fieldsData[8].replaceAll("\"", ""));
-                airport.setTimezone(fieldsData[9].replaceAll("\"", ""));
-                airport.setDST(fieldsData[10].replaceAll("\"", ""));
-                airport.setTzDatabaseTimeZone(fieldsData[11].replaceAll("\"", ""));
-                airport.setType(fieldsData[12].replaceAll("\"", ""));
-                airport.setSource(fieldsData[13].replaceAll("\"", ""));
-                return airport;
-            }
-        }
-        return null;
-    }
-
-    void getIndexWriter() throws IOException {
-        if (!indexWriter.isOpen()) {
-            Analyzer analyzer = new StandardAnalyzer();
-            IndexWriterConfig config = new IndexWriterConfig(analyzer);
-            indexWriter = new IndexWriter(directory, config);
-        }
-    }
-
     /**
-     * 1，提供rest api来查询机场（响应应为json格式，包括机场的所有字段）：
-     * a，按名称查询机场，支持模糊查询。
-     * b，通过国际航空运输协会查询机场，支持精确查询。
-     * c，按纬度/经度查询机场，获取最近的机场。
-     * d，按城市或国家查询机场。
-     *
-     * @param name      按名称查询机场，支持模糊查询 WildcardQuery
-     * @param iATA      通过国际航空运输协会查询机场，支持精确查询 TermQuery
-     * @param latitude  按纬度/经度查询机场，获取最近的机场。 FuzzyQuery
-     * @param longitude 按纬度/经度查询机场，获取最近的机场。 FuzzyQuery
-     * @param city      按城市或国家查询机场。 TermQuery
-     * @param country   按城市或国家查询机场。 TermQuery
+     * @param name      查询机场名称，支持模糊查询
+     * @param iATA      国际航空运输协会 ，支持精确查询
+     * @param latitude  按纬度/经度查询机场，获取最近的机场。
+     * @param longitude 按纬度/经度查询机场，获取最近的机场。
+     * @param city      城市 ，支持精确查询
+     * @param country   国家 ，支持精确查询
      * @return
      */
     @Override
@@ -203,7 +125,6 @@ public class PermissionServiceImpl implements PermissionService {
             IndexSearcher indexSearcher = new IndexSearcher(reader);
             BooleanQuery query = b.build();
             TopDocs topDocs = indexSearcher.search(query, 100);
-            System.out.println("匹配查询到" + topDocs.totalHits + "个记录");
             for (ScoreDoc scoreDoc : topDocs.scoreDocs) {
                 Airport airport = getAirport(indexSearcher.doc(scoreDoc.doc).get("lineData"));
                 airports.add(airport);
@@ -217,42 +138,47 @@ public class PermissionServiceImpl implements PermissionService {
     }
 
     /**
-     * @param sourceAirport      来源
-     * @param destinationAirport 目的地
+     * @param sourceAirport      源城市
+     * @param destinationAirport 目的地城市
      * @return
      */
     @Override
     public List<AirlineRoute> getAirlineRoutes(String sourceAirport, String destinationAirport) {
         try {
             BooleanQuery.Builder builder = new BooleanQuery.Builder();
-            if (!StringUtils.isEmpty(sourceAirport) && !StringUtils.isEmpty(destinationAirport)) {
-                BooleanQuery.Builder caseOne = new BooleanQuery.Builder();
+            TermQuery sourceAirportQuery = null;
+            TermQuery sourceAirportIdQuery = null;
+            if (!StringUtils.isEmpty(sourceAirport)) {
+                sourceAirport = sourceAirport.toLowerCase();
+                sourceAirportQuery = new TermQuery(new Term("sourceAirport", sourceAirport));
+                sourceAirportIdQuery = new TermQuery(new Term("sourceAirportId", sourceAirport));
+            }
+            TermQuery destinationAirportIdQuery = null;
+            TermQuery destinationAirportQuery = null;
+            if (!StringUtils.isEmpty(destinationAirport)) {
                 destinationAirport = destinationAirport.toLowerCase();
-                TermQuery destinationAirportQuery = new TermQuery(new Term("destinationAirport", destinationAirport));
+                destinationAirportQuery = new TermQuery(new Term("destinationAirport", destinationAirport));
+                destinationAirportIdQuery = new TermQuery(new Term("destinationAirportId", destinationAirport));
+            }
+            if (!StringUtils.isEmpty(sourceAirport) && !StringUtils.isEmpty(destinationAirport)) {
+                // (sourceAirport == '' or sourceAirportId = '') and (destinationAirport == '' or destinationAirportId = '')
+                BooleanQuery.Builder caseOne = new BooleanQuery.Builder();
                 caseOne.add(destinationAirportQuery, BooleanClause.Occur.SHOULD);
-                TermQuery destinationAirportIdQuery = new TermQuery(new Term("destinationAirportId", destinationAirport));
                 caseOne.add(destinationAirportIdQuery, BooleanClause.Occur.SHOULD);
                 BooleanQuery oneBuild = caseOne.build();
                 builder.add(oneBuild, BooleanClause.Occur.MUST);
                 BooleanQuery.Builder caseTwo = new BooleanQuery.Builder();
-                sourceAirport = sourceAirport.toLowerCase();
-                TermQuery sourceAirportQuery = new TermQuery(new Term("sourceAirport", sourceAirport));
                 caseTwo.add(sourceAirportQuery, BooleanClause.Occur.SHOULD);
-                TermQuery sourceAirportIdQuery = new TermQuery(new Term("sourceAirportId", sourceAirport));
                 caseTwo.add(sourceAirportIdQuery, BooleanClause.Occur.SHOULD);
                 BooleanQuery twoBuild = caseTwo.build();
                 builder.add(twoBuild, BooleanClause.Occur.MUST);
             } else if (!StringUtils.isEmpty(destinationAirport)) {
-                destinationAirport = destinationAirport.toLowerCase();
-                TermQuery destinationAirportQuery = new TermQuery(new Term("destinationAirport", destinationAirport));
+                // (destinationAirport == '' or destinationAirportId = '')
                 builder.add(destinationAirportQuery, BooleanClause.Occur.SHOULD);
-                TermQuery destinationAirportIdQuery = new TermQuery(new Term("destinationAirportId", destinationAirport));
                 builder.add(destinationAirportIdQuery, BooleanClause.Occur.SHOULD);
             } else if (!StringUtils.isEmpty(sourceAirport)) {
-                sourceAirport = sourceAirport.toLowerCase();
-                TermQuery sourceAirportQuery = new TermQuery(new Term("sourceAirport", sourceAirport));
+                // (sourceAirport == '' or sourceAirportId = '')
                 builder.add(sourceAirportQuery, BooleanClause.Occur.SHOULD);
-                TermQuery sourceAirportIdQuery = new TermQuery(new Term("sourceAirportId", sourceAirport));
                 builder.add(sourceAirportIdQuery, BooleanClause.Occur.SHOULD);
             } else {
                 return null;
@@ -283,12 +209,8 @@ public class PermissionServiceImpl implements PermissionService {
                         airlineIdMap.put(airlineId, routes);
                     }
                 }
-//                reader.close();
-//                indexWriter.close();
-//                getIndexWriter();
                 indexWriter.deleteAll();
                 Set<String> airlineIdKeys = airlineIdMap.keySet();
-
                 if (null != airlineIdKeys && airlineIdKeys.size() > 0) {
                     //要查找的字符串数组
                     //TODO 需要类似SQL中IN的语法
@@ -304,16 +226,26 @@ public class PermissionServiceImpl implements PermissionService {
                         indexWriter.commit();
                         reader = DirectoryReader.open(directory);//读索引
                     }
-
                     BooleanQuery airlinesQuery = airlineBuilder.build();
                     IndexSearcher indexAirlineSearcher = new IndexSearcher(reader);
                     TopDocs topAirlineDocs = indexAirlineSearcher.search(airlinesQuery, 100);
                     System.out.println("匹配查询到" + topAirlineDocs.totalHits + "个记录");
+                    Map<String, Airline> airlineMap = new HashMap();
                     for (ScoreDoc scoreDoc : topAirlineDocs.scoreDocs) {
-                        String lineData = indexAirlineSearcher.doc(scoreDoc.doc).get("lineData");
-                        System.out.println(lineData);
-                        Airline airline = getAirline(lineData);
+                        Airline airline = getAirline(indexAirlineSearcher.doc(scoreDoc.doc).get("lineData"));
+                        if (null != airline) {
+                            long airlineId = airline.getAirlineId();
+                            airlineMap.put(String.valueOf(airlineId), airline);
+                        }
                     }
+                    List<AirlineRoute> airlineRoutes = new ArrayList<>();
+                    for (String airlineIdKey : airlineIdKeys) {
+                        AirlineRoute airlineRoute = new AirlineRoute();
+                        airlineRoute.setAirline(airlineMap.get(airlineIdKey));
+                        airlineRoute.setRoutes(airlineIdMap.get(airlineIdKey));
+                        airlineRoutes.add(airlineRoute);
+                    }
+                    return airlineRoutes;
                 } else {
                     log.warn("不存在航空公司信息");
                 }
@@ -324,6 +256,50 @@ public class PermissionServiceImpl implements PermissionService {
             e.printStackTrace();
         }
         return null;
+    }
+
+    List<Document> getDocumentFromFile(File fileResource) throws IOException {
+        List<Document> documents = new ArrayList<>();
+        if (null != fileResource && fileResource.exists()) {
+            // 读取文件内容
+            BufferedReader burReader = null;
+            try {
+                // BufferedReader 读取文件
+                burReader = new BufferedReader(new FileReader(fileResource));
+                String lineData = null;
+                while ((lineData = burReader.readLine()) != null) {
+                    Airport airport = getAirport(lineData);
+                    if (null != airport) {
+                        //域的名称 域的内容 是否存储
+                        //创建Document 对象
+                        Document document = new Document();
+                        Field lineDataField = new TextField("lineData", lineData, Field.Store.YES);
+                        document.add(lineDataField);
+                        Field nameField = new TextField("name", airport.getName().toLowerCase(), Field.Store.YES);
+                        document.add(nameField);
+                        Field cityField = new TextField("city", airport.getCity().toLowerCase(), Field.Store.YES);
+                        document.add(cityField);
+                        Field countryField = new TextField("country", airport.getCountry().toLowerCase(), Field.Store.YES);
+                        document.add(countryField);
+                        Field iATAField = new TextField("iATA", airport.getIATA().toLowerCase(), Field.Store.YES);
+                        document.add(iATAField);
+                        Field longitudeField = new TextField("longitude-latitude", airport.getLongitude() + " " + airport.getLatitude(), Field.Store.YES);
+                        document.add(longitudeField);
+                        documents.add(document);
+                    } else {
+                        // log.warn("有误数据,待处理：{}", lineData);
+                    }
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            } finally {
+                if (null != burReader) {
+                    burReader.close();
+                }
+            }
+            return documents;
+        }
+        return documents;
     }
 
     List<Document> getRouteDocument(File fileResource) throws IOException {
@@ -347,7 +323,6 @@ public class PermissionServiceImpl implements PermissionService {
                         Field destinationAirportField = new TextField("destinationAirport", route.getDestinationAirport().toLowerCase(), Field.Store.YES);
                         Field destinationAirportIdField = new TextField("destinationAirportId", route.getDestinationAirportId(), Field.Store.YES);
                         Field codeShareField = new TextField("codeShare", route.getCodeShare().toLowerCase(), Field.Store.YES);
-
                         //创建Document 对象
                         Document document = new Document();
                         document.add(lineDataField);
@@ -358,7 +333,6 @@ public class PermissionServiceImpl implements PermissionService {
                         document.add(airlineIdField);
                         document.add(sourceAirportIdField);
                         document.add(destinationAirportIdField);
-
                         documents.add(document);
                     } else {
                         // log.warn("有误数据,待处理：{}", lineData);
@@ -413,19 +387,44 @@ public class PermissionServiceImpl implements PermissionService {
         return documents;
     }
 
+    Airport getAirport(String lineData) {
+        if (!StringUtils.isEmpty(lineData)) {
+            String[] fieldsData = lineData.split(",");
+            if (null != fieldsData && fieldsData.length == 14) {
+                Airport airport = new Airport();
+                airport.setAirportId(Long.valueOf(fieldsData[0]));
+                airport.setName(fieldsData[1].replaceAll("\"", ""));
+                airport.setCity(fieldsData[2].replaceAll("\"", ""));
+                airport.setCountry(fieldsData[3].replaceAll("\"", ""));
+                airport.setIATA(fieldsData[4].replaceAll("\"", ""));
+                airport.setICAO(fieldsData[5].replaceAll("\"", ""));
+                airport.setLatitude(Double.valueOf(fieldsData[6]));
+                airport.setLongitude(Double.valueOf(fieldsData[7]));
+                airport.setAltitude(fieldsData[8].replaceAll("\"", ""));
+                airport.setTimezone(fieldsData[9].replaceAll("\"", ""));
+                airport.setDST(fieldsData[10].replaceAll("\"", ""));
+                airport.setTzDatabaseTimeZone(fieldsData[11].replaceAll("\"", ""));
+                airport.setType(fieldsData[12].replaceAll("\"", ""));
+                airport.setSource(fieldsData[13].replaceAll("\"", ""));
+                return airport;
+            }
+        }
+        return null;
+    }
+
     Airline getAirline(String lineData) {
         if (!StringUtils.isEmpty(lineData)) {
             String[] fieldsData = lineData.split(",");
             if (null != fieldsData && fieldsData.length == 8) {
                 Airline airline = new Airline();
                 airline.setAirlineId(Long.valueOf(fieldsData[0]));
-                airline.setName(fieldsData[1]);
-                airline.setAlias(fieldsData[2]);
-                airline.setIATA(fieldsData[3]);
-                airline.setICAO(fieldsData[4]);
-                airline.setCallSign(fieldsData[5]);
-                airline.setCountry(fieldsData[6]);
-                airline.setActive(fieldsData[7]);
+                airline.setName(fieldsData[1].replaceAll("\"", ""));
+                airline.setAlias(fieldsData[2].replaceAll("\"", ""));
+                airline.setIATA(fieldsData[3].replaceAll("\"", ""));
+                airline.setICAO(fieldsData[4].replaceAll("\"", ""));
+                airline.setCallSign(fieldsData[5].replaceAll("\"", ""));
+                airline.setCountry(fieldsData[6].replaceAll("\"", ""));
+                airline.setActive(fieldsData[7].replaceAll("\"", ""));
                 return airline;
             }
         }
