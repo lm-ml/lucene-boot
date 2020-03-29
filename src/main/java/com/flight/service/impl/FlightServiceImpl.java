@@ -9,7 +9,6 @@ import com.flight.service.FlightService;
 import com.flight.service.LuceneService;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.lucene.document.Document;
-import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.search.*;
@@ -61,15 +60,15 @@ public class FlightServiceImpl implements FlightService {
             BooleanQuery.Builder queryAirportBuilder = getQueryAirportBuilder(name, iATA, latitude, longitude, city, country);
             if (null != queryAirportBuilder) {
                 // 读取索引库索引
-                IndexReader reader = DirectoryReader.open(luceneService.getDirectory());//读索引
-                IndexSearcher indexSearcher = new IndexSearcher(reader);
+                IndexReader reader = luceneService.openIndexReader();//读索引
+                IndexSearcher indexSearcher = luceneService.getIndexSearcher(reader);
                 BooleanQuery query = queryAirportBuilder.build();
                 TopDocs topDocs = indexSearcher.search(query, Integer.MAX_VALUE);
                 for (ScoreDoc scoreDoc : topDocs.scoreDocs) {
                     Airport airport = convertService.getAirport(indexSearcher.doc(scoreDoc.doc).get("lineData"));
                     airports.add(airport);
                 }
-                reader.close();
+                luceneService.closeIndexReader(reader);
             }
             luceneService.closeIndexWriter();
         } catch (Exception e) {
@@ -151,8 +150,8 @@ public class FlightServiceImpl implements FlightService {
             luceneService.addDocuments(routeDocuments);
             luceneService.commit();
             // 读取索引库索引
-            IndexReader reader = DirectoryReader.open(luceneService.getDirectory());//读索引
-            IndexSearcher indexSearcher = new IndexSearcher(reader);
+            IndexReader reader = luceneService.openIndexReader();//读索引
+            IndexSearcher indexSearcher = luceneService.getIndexSearcher(reader);
             BooleanQuery query = builder.build();
             TopDocs topDocs = indexSearcher.search(query, Integer.MAX_VALUE);
             for (ScoreDoc scoreDoc : topDocs.scoreDocs) {
@@ -167,10 +166,60 @@ public class FlightServiceImpl implements FlightService {
                     airlineIdMap.put(airlineId, routes);
                 }
             }
-            reader.close();
+            luceneService.closeIndexReader(reader);
             return airlineIdMap;
         }
         return null;
+    }
+
+    /**
+     * 根据航空公司ID获取航空公司信息，并处理航空公司和航线信息
+     *
+     * @param airlineIdMap
+     * @return
+     * @throws Exception
+     */
+    List<AirlineRoute> getAirlinesByAirlineIds(Map<String, ArrayList<Route>> airlineIdMap) throws Exception {
+        List<AirlineRoute> airlineRoutes = new ArrayList<>();
+        Set<String> airlineIdKeys = null != airlineIdMap ? airlineIdMap.keySet() : null;
+        if (null != airlineIdKeys && airlineIdKeys.size() > 0) {
+            // 读取索引库索引
+            IndexReader reader = luceneService.openIndexReader();//读索引
+            //要查找的字符串数组
+            //TODO 需要类似SQL中IN的语法
+            BooleanQuery.Builder airlineBuilder = new BooleanQuery.Builder();
+            for (String airlineIdKey : airlineIdKeys) {
+                TermQuery termQuery = new TermQuery(new Term("airlineId", airlineIdKey));
+                airlineBuilder.add(termQuery, BooleanClause.Occur.SHOULD);
+            }
+            File airlinesResource = luceneService.getFileByResourceName(airlines_data_resource_name);
+            List<Document> airlinesDocuments = convertService.convertAirlineFile(airlinesResource);
+            if (null != airlinesDocuments && !airlinesDocuments.isEmpty()) {
+                //创建索引，并写入索引库
+                luceneService.addDocuments(airlinesDocuments);
+                luceneService.commit();
+                reader = luceneService.openIndexReader();//读索引
+            }
+            BooleanQuery airlinesQuery = airlineBuilder.build();
+            IndexSearcher indexAirlineSearcher = luceneService.getIndexSearcher(reader) ;
+            TopDocs topAirlineDocs = indexAirlineSearcher.search(airlinesQuery, Integer.MAX_VALUE);
+            Map<String, Airline> airlineMap = new HashMap();
+            for (ScoreDoc scoreDoc : topAirlineDocs.scoreDocs) {
+                Airline airline = convertService.getAirline(indexAirlineSearcher.doc(scoreDoc.doc).get("lineData"));
+                if (null != airline) {
+                    long airlineId = airline.getAirlineId();
+                    airlineMap.put(String.valueOf(airlineId), airline);
+                }
+            }
+            for (String airlineIdKey : airlineIdKeys) {
+                AirlineRoute airlineRoute = new AirlineRoute();
+                airlineRoute.setAirline(airlineMap.get(airlineIdKey));
+                airlineRoute.setRoutes(airlineIdMap.get(airlineIdKey));
+                airlineRoutes.add(airlineRoute);
+            }
+            luceneService.closeIndexReader(reader);
+        }
+        return airlineRoutes;
     }
 
     /**
@@ -208,56 +257,6 @@ public class FlightServiceImpl implements FlightService {
         }
         //todo 经纬度信息查询
         return builder;
-    }
-
-    /**
-     * 根据航空公司ID获取航空公司信息，并处理航空公司和航线信息
-     *
-     * @param airlineIdMap
-     * @return
-     * @throws Exception
-     */
-    List<AirlineRoute> getAirlinesByAirlineIds(Map<String, ArrayList<Route>> airlineIdMap) throws Exception {
-        List<AirlineRoute> airlineRoutes = new ArrayList<>();
-        Set<String> airlineIdKeys = null != airlineIdMap ? airlineIdMap.keySet() : null;
-        if (null != airlineIdKeys && airlineIdKeys.size() > 0) {
-            // 读取索引库索引
-            IndexReader reader = DirectoryReader.open(luceneService.getDirectory());//读索引
-            //要查找的字符串数组
-            //TODO 需要类似SQL中IN的语法
-            BooleanQuery.Builder airlineBuilder = new BooleanQuery.Builder();
-            for (String airlineIdKey : airlineIdKeys) {
-                TermQuery termQuery = new TermQuery(new Term("airlineId", airlineIdKey));
-                airlineBuilder.add(termQuery, BooleanClause.Occur.SHOULD);
-            }
-            File airlinesResource = luceneService.getFileByResourceName(airlines_data_resource_name);
-            List<Document> airlinesDocuments = convertService.convertAirlineFile(airlinesResource);
-            if (null != airlinesDocuments && !airlinesDocuments.isEmpty()) {
-                //创建索引，并写入索引库
-                luceneService.addDocuments(airlinesDocuments);
-                luceneService.commit();
-                reader = DirectoryReader.open(luceneService.getDirectory());//读索引
-            }
-            BooleanQuery airlinesQuery = airlineBuilder.build();
-            IndexSearcher indexAirlineSearcher = new IndexSearcher(reader);
-            TopDocs topAirlineDocs = indexAirlineSearcher.search(airlinesQuery, Integer.MAX_VALUE);
-            Map<String, Airline> airlineMap = new HashMap();
-            for (ScoreDoc scoreDoc : topAirlineDocs.scoreDocs) {
-                Airline airline = convertService.getAirline(indexAirlineSearcher.doc(scoreDoc.doc).get("lineData"));
-                if (null != airline) {
-                    long airlineId = airline.getAirlineId();
-                    airlineMap.put(String.valueOf(airlineId), airline);
-                }
-            }
-            for (String airlineIdKey : airlineIdKeys) {
-                AirlineRoute airlineRoute = new AirlineRoute();
-                airlineRoute.setAirline(airlineMap.get(airlineIdKey));
-                airlineRoute.setRoutes(airlineIdMap.get(airlineIdKey));
-                airlineRoutes.add(airlineRoute);
-            }
-            reader.close();
-        }
-        return airlineRoutes;
     }
 
 }
