@@ -87,7 +87,7 @@ public class FlightServiceImpl implements FlightService {
         List<AirlineRoute> airlineRoutes = new ArrayList<>();
         try {
             if (StringUtils.isEmpty(sourceCity) && StringUtils.isEmpty(destinationCity)) {
-                return null;
+                return airlineRoutes;
             }
             List<Airport> sourceCityAirports = null;
             if (!StringUtils.isEmpty(sourceCity)) {
@@ -98,7 +98,7 @@ public class FlightServiceImpl implements FlightService {
                 destinationCityAirports = getAirports(null, null, null, null, destinationCity, null);
             }
             if ((null == sourceCityAirports || sourceCityAirports.isEmpty()) && (null == destinationCityAirports || destinationCityAirports.isEmpty())) {
-                return null;
+                return airlineRoutes;
             }
             luceneService.getIndexWriter();
             luceneService.deleteAll(); //原始文件
@@ -201,7 +201,7 @@ public class FlightServiceImpl implements FlightService {
                 reader = luceneService.openIndexReader();//读索引
             }
             BooleanQuery airlinesQuery = airlineBuilder.build();
-            IndexSearcher indexAirlineSearcher = luceneService.getIndexSearcher(reader) ;
+            IndexSearcher indexAirlineSearcher = luceneService.getIndexSearcher(reader);
             TopDocs topAirlineDocs = indexAirlineSearcher.search(airlinesQuery, Integer.MAX_VALUE);
             Map<String, Airline> airlineMap = new HashMap();
             for (ScoreDoc scoreDoc : topAirlineDocs.scoreDocs) {

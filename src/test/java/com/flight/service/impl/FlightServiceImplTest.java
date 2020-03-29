@@ -10,17 +10,18 @@ import com.flight.service.LuceneService;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.TextField;
-import org.apache.lucene.index.*;
+import org.apache.lucene.index.IndexReader;
+import org.apache.lucene.index.IndexableField;
 import org.apache.lucene.search.*;
-import org.apache.lucene.store.Directory;
-import org.apache.lucene.store.RAMDirectory;
 import org.assertj.core.util.Lists;
 import org.junit.Before;
 import org.junit.Test;
-import org.mockito.*;
+import org.mockito.ArgumentCaptor;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -38,6 +39,9 @@ public class FlightServiceImplTest {
 
     @InjectMocks
     private FlightServiceImpl flightServiceImpl = new FlightServiceImpl();
+
+    @InjectMocks
+    private FlightServiceImplMock flightServiceImplMock = new FlightServiceImplMock();
 
     @Mock
     private LuceneService luceneService;
@@ -71,7 +75,7 @@ public class FlightServiceImplTest {
         airport.setAirportId(66666);
         doReturn(airport).when(convertService).getAirport(anyString());
         List<Airport> airports = flightService.getAirports(null, null, null, null, null, null);
-        assertEquals(66666,airports.get(0).getAirportId());
+        assertEquals(66666, airports.get(0).getAirportId());
         ArgumentCaptor<String> resourceNameCaptor = ArgumentCaptor.forClass(String.class);
         verify(luceneService).getFileByResourceName(resourceNameCaptor.capture());
         assertEquals(FlightServiceImpl.airports_data_resource_name, resourceNameCaptor.getValue());
@@ -90,6 +94,30 @@ public class FlightServiceImplTest {
         flightService.getAirports(null, null, null, null, null, null);
         verify(luceneService, never()).deleteAll();
     }
+
+    @Test(expected = RuntimeException.class)
+    public void should_throw_exception_call_getAirlineRoutes() throws Exception {
+        doThrow(new RuntimeException()).when(luceneService).getIndexWriter();
+        flightServiceImplMock.getAirlineRoutes("sourceCity", null);
+        verify(luceneService, never()).deleteAll();
+    }
+
+    //方法不可测？
+    @Test
+    public void should_return_empty_list_call_getAirlineRoutes_and_params_isnull() throws Exception {
+        flightServiceImplMock.getAirlineRoutes("sourceCity", "destinationCity");
+        verify(luceneService, times(1)).getIndexWriter();
+        verify(luceneService, times(2)).deleteAll();
+        verify(luceneService, times(1)).getIndexWriter();
+    }
+
+
+    @Test
+    public void should_return_list_call_getAirlineRoutes_and_params_is_not_null() throws Exception {
+        flightServiceImplMock.getAirlineRoutes(null, null);
+        verify(luceneService, never()).getIndexWriter();
+    }
+
 
     @Test
     public void should_return_null_when_call_getAirlineMap_and_routeDocuments_isnull() throws Exception {
@@ -282,5 +310,24 @@ public class FlightServiceImplTest {
         assertTrue(clauses.get(1).getOccur().equals(BooleanClause.Occur.MUST));
         assertEquals("+city:querycity", clauses.get(2).toString());
         assertTrue(clauses.get(3).getOccur().equals(BooleanClause.Occur.MUST));
+    }
+
+    class FlightServiceImplMock extends FlightServiceImpl {
+        @Override
+        public List<Airport> getAirports(String name, String iATA, Double latitude, Double longitude, String city, String country) {
+            return Lists.newArrayList(new Airport());
+        }
+
+        @Override
+        Map<String, ArrayList<Route>> getAirlineMap(List<Airport> sourceCityAirports, List<Airport> destinationCityAirports) throws Exception {
+            Map<String, ArrayList<Route>> routeMap = new HashMap<>();
+            routeMap.put("key", new ArrayList<>());
+            return routeMap;
+        }
+
+        @Override
+        List<AirlineRoute> getAirlinesByAirlineIds(Map<String, ArrayList<Route>> airlineIdMap) throws Exception {
+            return null;
+        }
     }
 }
