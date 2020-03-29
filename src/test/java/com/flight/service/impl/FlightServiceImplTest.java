@@ -17,10 +17,7 @@ import org.apache.lucene.store.RAMDirectory;
 import org.assertj.core.util.Lists;
 import org.junit.Before;
 import org.junit.Test;
-import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.*;
 
 import java.io.File;
 import java.io.IOException;
@@ -53,6 +50,46 @@ public class FlightServiceImplTest {
         MockitoAnnotations.initMocks(this);
     }
 
+    @Test
+    public void should_return_airports_when_call_getAirports() throws Exception {
+        File airportsResource = mock(File.class);
+        doReturn(airportsResource).when(luceneService).getFileByResourceName(anyString());
+        IndexReader indexReader = mock(IndexReader.class);
+        doReturn(indexReader).when(luceneService).openIndexReader();
+        IndexSearcher indexSearcher = mock(IndexSearcher.class);
+        doReturn(indexSearcher).when(luceneService).getIndexSearcher(any());
+        ScoreDoc scoreDoc = new ScoreDoc(50, 0.5f);
+        TopDocs topDocs = new TopDocs(99l, new ScoreDoc[]{scoreDoc}, 50);
+        Document document = new Document();
+        document.add(new TextField("lineData", "lineValue", Field.Store.YES));
+        doReturn(document).when(indexSearcher).doc(anyInt());
+        doReturn(topDocs).when(indexSearcher).search(any(), anyInt());
+        List<Document> documents = new ArrayList<>();
+        documents.add(document);
+        doReturn(documents).when(convertService).convertAirportFile(any());
+        Airport airport = new Airport();
+        airport.setAirportId(66666);
+        doReturn(airport).when(convertService).getAirport(anyString());
+        List<Airport> airports = flightService.getAirports(null, null, null, null, null, null);
+        assertEquals(66666,airports.get(0).getAirportId());
+        ArgumentCaptor<String> resourceNameCaptor = ArgumentCaptor.forClass(String.class);
+        verify(luceneService).getFileByResourceName(resourceNameCaptor.capture());
+        assertEquals(FlightServiceImpl.airports_data_resource_name, resourceNameCaptor.getValue());
+        ArgumentCaptor<List> airlinesDocumentsCaptor = ArgumentCaptor.forClass(List.class);
+        verify(luceneService).addDocuments(airlinesDocumentsCaptor.capture());
+        List<Document> airlinesDocuments = (List<Document>) (airlinesDocumentsCaptor.getValue());
+        Document documentParam = airlinesDocuments.get(0);
+        IndexableField lineDataField = documentParam.getFields().get(0);
+        assertTrue(lineDataField.fieldType().stored());
+        assertEquals("lineValue", lineDataField.stringValue());
+    }
+
+    @Test(expected = RuntimeException.class)
+    public void should_throw_exception_call_getAirports() throws Exception {
+        doThrow(new RuntimeException()).when(luceneService).getIndexWriter();
+        flightService.getAirports(null, null, null, null, null, null);
+        verify(luceneService, never()).deleteAll();
+    }
 
     @Test
     public void should_return_null_when_call_getAirlineMap_and_routeDocuments_isnull() throws Exception {
