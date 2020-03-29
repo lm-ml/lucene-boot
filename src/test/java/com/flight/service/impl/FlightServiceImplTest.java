@@ -57,7 +57,7 @@ public class FlightServiceImplTest {
     @Test
     public void should_return_airports_when_call_getAirports() throws Exception {
         File airportsResource = mock(File.class);
-        doReturn(airportsResource).when(luceneService).getFileByResourceName(anyString());
+        doReturn(airportsResource).when(luceneService).copyInputStreamToFileByResourceName(anyString());
         IndexReader indexReader = mock(IndexReader.class);
         doReturn(indexReader).when(luceneService).openIndexReader();
         IndexSearcher indexSearcher = mock(IndexSearcher.class);
@@ -77,7 +77,7 @@ public class FlightServiceImplTest {
         List<Airport> airports = flightService.getAirports(null, null, null, null, null, null);
         assertEquals(66666, airports.get(0).getAirportId());
         ArgumentCaptor<String> resourceNameCaptor = ArgumentCaptor.forClass(String.class);
-        verify(luceneService).getFileByResourceName(resourceNameCaptor.capture());
+        verify(luceneService).copyInputStreamToFileByResourceName(resourceNameCaptor.capture());
         assertEquals(FlightServiceImpl.airports_data_resource_name, resourceNameCaptor.getValue());
         ArgumentCaptor<List> airlinesDocumentsCaptor = ArgumentCaptor.forClass(List.class);
         verify(luceneService).addDocuments(airlinesDocumentsCaptor.capture());
@@ -131,7 +131,7 @@ public class FlightServiceImplTest {
         verify(convertService, never()).getRoute(eq(null));
         verify(luceneService, never()).closeIndexReader(eq(null));
         ArgumentCaptor<String> resourceNameCaptor = ArgumentCaptor.forClass(String.class);
-        verify(luceneService).getFileByResourceName(resourceNameCaptor.capture());
+        verify(luceneService).copyInputStreamToFileByResourceName(resourceNameCaptor.capture());
         assertEquals(FlightServiceImpl.routes_data_resource_name, resourceNameCaptor.getValue());
     }
 
@@ -189,7 +189,7 @@ public class FlightServiceImplTest {
 
     void mockGetAirlineMapData(IndexSearcher indexSearcher) throws Exception {
         File routesResource = mock(File.class);
-        doReturn(routesResource).when(luceneService).getFileByResourceName(anyString());
+        doReturn(routesResource).when(luceneService).copyInputStreamToFileByResourceName(anyString());
         doReturn(indexSearcher).when(luceneService).getIndexSearcher(any());
         ScoreDoc scoreDoc = new ScoreDoc(50, 0.5f);
         TopDocs topDocs = new TopDocs(9999l, new ScoreDoc[]{scoreDoc}, 50);
@@ -235,7 +235,7 @@ public class FlightServiceImplTest {
         assertNotNull(airlineRoutes);
         assertEquals(0, airlineRoutes.size());
         verify(luceneService, never()).openIndexReader();
-        verify(luceneService, times(0)).getFileByResourceName(eq(null));
+        verify(luceneService, times(0)).copyInputStreamToFileByResourceName(eq(null));
         verify(convertService, never()).convertAirlineFile(eq(null));
         verify(convertService, never()).getAirline(eq(null));
         verify(luceneService, never()).addDocuments(eq(null));

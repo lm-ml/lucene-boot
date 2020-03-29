@@ -50,7 +50,7 @@ public class FlightServiceImpl implements FlightService {
             luceneService.getIndexWriter();
             luceneService.deleteAll();
             //原始文件
-            File airportsResource = luceneService.getFileByResourceName(airports_data_resource_name);
+            File airportsResource = luceneService.copyInputStreamToFileByResourceName(airports_data_resource_name);
             List<Document> documents = convertService.convertAirportFile(airportsResource);
             if (null != documents && !documents.isEmpty()) {
                 //创建索引，并写入索引库
@@ -72,7 +72,7 @@ public class FlightServiceImpl implements FlightService {
             }
             luceneService.closeIndexWriter();
         } catch (Exception e) {
-            throw new RuntimeException("查询机场数据失败");
+            throw new RuntimeException("查询机场数据失败", e);
         }
         return airports;
     }
@@ -109,7 +109,7 @@ public class FlightServiceImpl implements FlightService {
             }
             luceneService.closeIndexWriter();
         } catch (Exception e) {
-            throw new RuntimeException("查询航班数据失败");
+            throw new RuntimeException("查询航班数据失败", e);
         }
         return airlineRoutes;
     }
@@ -123,7 +123,7 @@ public class FlightServiceImpl implements FlightService {
      * @throws Exception
      */
     Map<String, ArrayList<Route>> getAirlineMap(List<Airport> sourceCityAirports, List<Airport> destinationCityAirports) throws Exception {
-        File routesResource = luceneService.getFileByResourceName(routes_data_resource_name);
+        File routesResource = luceneService.copyInputStreamToFileByResourceName(routes_data_resource_name);
         List<Document> routeDocuments = convertService.convertRouteFile(routesResource);
         if (null != routeDocuments && routeDocuments.size() > 0) {
             BooleanQuery.Builder builder = new BooleanQuery.Builder();
@@ -192,7 +192,7 @@ public class FlightServiceImpl implements FlightService {
                 TermQuery termQuery = new TermQuery(new Term("airlineId", airlineIdKey));
                 airlineBuilder.add(termQuery, BooleanClause.Occur.SHOULD);
             }
-            File airlinesResource = luceneService.getFileByResourceName(airlines_data_resource_name);
+            File airlinesResource = luceneService.copyInputStreamToFileByResourceName(airlines_data_resource_name);
             List<Document> airlinesDocuments = convertService.convertAirlineFile(airlinesResource);
             if (null != airlinesDocuments && !airlinesDocuments.isEmpty()) {
                 //创建索引，并写入索引库

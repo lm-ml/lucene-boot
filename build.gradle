@@ -1,3 +1,5 @@
+import java.text.SimpleDateFormat
+
 apply plugin: "java"
 apply plugin: "idea"
 apply plugin: "eclipse"
@@ -57,8 +59,6 @@ dependencies {
     runtime "org.springframework.boot:spring-boot-devtools:${springBootVersion}"
     testCompile "org.springframework.boot:spring-boot-starter-test:${springBootVersion}"
 
-    //springfox
-    def springfoxVersion = "2.9.+"
     compile('org.apache.commons:commons-collections4:4.1')
     compile "org.apache.commons:commons-lang3:3.7"
     compile("commons-codec:commons-codec:1.11")
@@ -69,9 +69,6 @@ dependencies {
     def springVersion = "5.1.5.RELEASE"
     compile "org.springframework:spring-context:${springVersion}"
     compile "org.springframework:spring-context-support:${springVersion}"
-    // http
-    compile("org.apache.httpcomponents:httpclient:4.5.3")
-    compile("org.apache.httpcomponents:httpcore:4.4.8")
 
     compileOnly("org.projectlombok:lombok:1.16.18")
 
@@ -93,3 +90,27 @@ dependencies {
 }
 
 apply plugin: "maven-publish"
+
+Date today = new Date()
+
+def static buildTime(Date date) {
+    SimpleDateFormat df = new SimpleDateFormat("yyyyMMddHHmmss")
+    return df.format(date)
+}
+
+jar {
+    manifest {
+        attributes 'Main-Class': 'com.flight.FlightLuceneApplication'
+        attributes("Manifest-Version": buildTime(today),
+                "Created-By": 'wbin',
+                "Build-Date": today,
+                "Build-Number": buildTime(today)
+        )
+    }
+    baseName "lucene-boot"
+}
+
+jacoco {
+    toolVersion = "0.8.1"
+}
+

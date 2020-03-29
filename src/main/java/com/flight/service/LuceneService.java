@@ -29,6 +29,9 @@ public interface LuceneService {
 
     File getFileByResourceName(String resourceName) throws IOException;
 
+    File copyInputStreamToFileByResourceName(String resourceName) throws IOException;
+
+
     long deleteAll() throws IOException;
 
     long addDocuments(List<Document> documents) throws IOException;

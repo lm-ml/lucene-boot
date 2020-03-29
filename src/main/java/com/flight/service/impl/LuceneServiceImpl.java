@@ -2,6 +2,8 @@ package com.flight.service.impl;
 
 import com.flight.service.LuceneService;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
@@ -13,6 +15,7 @@ import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.RAMDirectory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
 import org.springframework.stereotype.Service;
@@ -21,6 +24,7 @@ import org.springframework.util.StringUtils;
 import javax.annotation.PostConstruct;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.List;
 
 @Slf4j
@@ -80,7 +84,7 @@ public class LuceneServiceImpl implements LuceneService {
 
     @Override
     public void closeIndexReader(IndexReader indexReader) throws IOException {
-        if (null != indexReader){
+        if (null != indexReader) {
             indexReader.close();
         }
     }
@@ -93,6 +97,12 @@ public class LuceneServiceImpl implements LuceneService {
      * @throws IOException
      */
 
+    /**
+     * cannot be resolved to absolute file path because it does not reside in the file.
+     * @param resourceName
+     * @return
+     * @throws IOException
+     */
     @Override
     public File getFileByResourceName(String resourceName) throws IOException {
         if (StringUtils.isEmpty(resourceName)) {
@@ -104,6 +114,24 @@ public class LuceneServiceImpl implements LuceneService {
         }
         return null;
     }
+
+    @Override
+    public File copyInputStreamToFileByResourceName(String resourceName) throws IOException {
+        if (StringUtils.isEmpty(resourceName)) {
+            return null;
+        }
+        ClassPathResource classPathResource = new ClassPathResource("data/" + resourceName);
+        InputStream inputStream = classPathResource.getInputStream();
+        File file = File.createTempFile("test", ".txt");
+        try {
+            FileUtils.copyInputStreamToFile(inputStream, file);
+        } finally {
+            IOUtils.closeQuietly(inputStream);
+        }
+        return file;
+    }
+
+
 
     @Override
     public long deleteAll() throws IOException {
