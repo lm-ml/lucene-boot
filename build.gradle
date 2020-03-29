@@ -91,3 +91,5 @@ dependencies {
     // 文件IO操作
     compile("commons-io:commons-io:2.6")
 }
+
+apply plugin: "maven-publish"
