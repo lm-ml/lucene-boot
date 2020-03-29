@@ -35,6 +35,8 @@ public class FlightServiceImpl implements FlightService {
 
 
     /**
+     * todo 经纬度信息查询？
+     *
      * @param name      查询机场名称，支持模糊查询
      * @param iATA      国际航空运输协会 ，支持精确查询
      * @param latitude  按纬度/经度查询机场，获取最近的机场。
@@ -78,6 +80,8 @@ public class FlightServiceImpl implements FlightService {
     }
 
     /**
+     * todo 中转站查询？
+     *
      * @param sourceCity      源城市
      * @param destinationCity 目的地城市
      * @return
