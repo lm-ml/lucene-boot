@@ -134,6 +134,20 @@ public class ConvertServiceImplTest {
     }
 
     @Test
+    public void should_return_airline_when_call_getAirline_and_lineData_match_have_doubleQuotes() {
+        String lineData = "14,\"Abacus, International\",\\N,\"1B\",\"\",\"\",\"Singapore\",\"Y\"";
+        Airline airline = convertService.getAirline(lineData);
+        assertEquals("Abacus, International", airline.getName());
+    }
+
+    @Test
+    public void should_return_airline_when_call_getAirline_and_lineData_mismatch_have_doubleQuotes() {
+        String lineData = "14,\"Abacus, International\",\\N,\"1B\",\"\",\"\",\"Singapore\",\"Singapore\",\"Singapore\",\"Y\"";
+        Airline airline = convertService.getAirline(lineData);
+        assertNull(airline);
+    }
+
+    @Test
     public void should_return_null_when_call_getRoute_and_lineData_isnull() {
         Route route = convertService.getRoute(null);
         assertNull(route);
@@ -148,9 +162,16 @@ public class ConvertServiceImplTest {
 
     @Test
     public void should_return_route_when_call_getRoute_and_lineData_match() {
-        String lineData = "ZH,4611,HAK,4120,SZX,3374,,0,320 738 319";
+        String lineData = "ZH,4611,HAK,4120\",SZX,3374,,0,320 738 319";
         Route route = convertService.getRoute(lineData);
         assertEquals("320 738 319", route.getEquipment());
+    }
+
+    @Test
+    public void should_return_route_when_call_getRoute_and_lineData_mismatch() {
+        String lineData = "ZH,4611,HAK,4120,SZX,3374\",,0,320 738 319,320 738 319";
+        Route route = convertService.getRoute(lineData);
+        assertNull(route);
     }
 
 
@@ -178,5 +199,61 @@ public class ConvertServiceImplTest {
         String value = convertServiceImpl.toLowerCaseValue("VALUE");
         assertEquals("value", value);
     }
+
+
+    @Test
+    public void should_split_value_when_call_getFieldsData_have_doubleQuotes_case_1() {
+        String lineData = "ZH,4611,HAK,4120,SZX,\"33,74\",,0,320 738 319";
+        String[] fieldsData = convertServiceImpl.getFieldsData(lineData);
+        assertEquals(9, fieldsData.length);
+        assertEquals("\"33,74\"", fieldsData[5]);
+    }
+
+    @Test
+    public void should_split_value_when_call_getFieldsData_have_doubleQuotes_case_2() {
+        String lineData = "ZH,4611,HAK,4120,SZX,\"33,74,,0,320 738 319";
+        String[] fieldsData = convertServiceImpl.getFieldsData(lineData);
+        assertEquals(10, fieldsData.length);
+        assertEquals("\"33", fieldsData[5]);
+    }
+
+    @Test
+    public void should_split_value_when_call_getFieldsData_have_doubleQuotes_case_3() {
+        String lineData = "ZH,4611,HAK,4120,SZX,33,74\",,0,320 738 319";
+        String[] fieldsData = convertServiceImpl.getFieldsData(lineData);
+        assertEquals(10, fieldsData.length);
+        assertEquals("74\"", fieldsData[6]);
+    }
+
+    @Test
+    public void should_split_value_when_call_getFieldsData_have_apostrophe_case_1() {
+        String lineData = "ZH,4611,HAK,4120,SZX,'33,74',,0,320 738 319";
+        String[] fieldsData = convertServiceImpl.getFieldsData(lineData);
+        assertEquals(9, fieldsData.length);
+        assertEquals("'33,74'", fieldsData[5]);
+    }
+
+    @Test
+    public void should_split_value_when_call_getFieldsData_have_apostrophe_case_2() {
+        String lineData = "ZH,4611,HAK,4120,SZX,'33,74,,0,320 738 319";
+        String[] fieldsData = convertServiceImpl.getFieldsData(lineData);
+        assertEquals(10, fieldsData.length);
+        assertEquals("'33", fieldsData[5]);
+    }
+
+    @Test
+    public void should_split_value_when_call_getFieldsData_have_apostrophe_case_3() {
+        String lineData = "ZH,4611,HAK,4120,SZX,33,74',,0,320 738 319";
+        String[] fieldsData = convertServiceImpl.getFieldsData(lineData);
+        assertEquals(10, fieldsData.length);
+        assertEquals("74'", fieldsData[6]);
+    }
+
+    @Test
+    public void should_return_null_when_call_getFieldsData_lineData_isnull() {
+        String[] fieldsData = convertServiceImpl.getFieldsData(null);
+        assertNull(fieldsData);
+    }
+
 
 }

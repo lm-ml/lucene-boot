@@ -136,7 +136,16 @@ public class ConvertServiceImpl implements ConvertService {
     public Airport getAirport(String lineData) {
         if (!StringUtils.isEmpty(lineData)) {
             String[] fieldsData = lineData.split(",");
-            if (null != fieldsData && fieldsData.length == 14) {
+            if (null != fieldsData && fieldsData.length >= 14) {
+                if (fieldsData.length > 8) {
+                    String[] formatValue = getFieldsData(lineData);
+                    if (null != formatValue && formatValue.length == 14) {
+                        fieldsData = formatValue;
+                    } else {
+                        //问题数据
+                        return null;
+                    }
+                }
                 Airport airport = new Airport();
                 airport.setAirportId(Long.valueOf(fieldsData[0]));
                 airport.setName(formatValue(fieldsData[1]));
@@ -153,6 +162,8 @@ public class ConvertServiceImpl implements ConvertService {
                 airport.setType(formatValue(fieldsData[12]));
                 airport.setSource(formatValue(fieldsData[13]));
                 return airport;
+            } else {
+                //问题数据
             }
         }
         return null;
@@ -162,7 +173,16 @@ public class ConvertServiceImpl implements ConvertService {
     public Airline getAirline(String lineData) {
         if (!StringUtils.isEmpty(lineData)) {
             String[] fieldsData = lineData.split(",");
-            if (null != fieldsData && fieldsData.length == 8) {
+            if (null != fieldsData && fieldsData.length >= 8) {
+                if (fieldsData.length > 8) {
+                    String[] formatValue = getFieldsData(lineData);
+                    if (null != formatValue && formatValue.length == 8) {
+                        fieldsData = formatValue;
+                    } else {
+                        //问题数据
+                        return null;
+                    }
+                }
                 Airline airline = new Airline();
                 airline.setAirlineId(Long.valueOf(fieldsData[0]));
                 airline.setName(formatValue(fieldsData[1]));
@@ -174,8 +194,43 @@ public class ConvertServiceImpl implements ConvertService {
                 airline.setActive(formatValue(fieldsData[7]));
                 return airline;
             } else {
-                //todo 还有一些正确的数据需要处理
+                //问题数据
             }
+        }
+        return null;
+    }
+
+    /**
+     * 只处理用 " 或 ' 包含的数据
+     *
+     * @param lineData
+     * @return
+     */
+    String[] getFieldsData(String lineData) {
+        if (!StringUtils.isEmpty(lineData)) {
+            String splitCode = ",";
+            String doubleQuotes = "\"";
+            String apostrophe = "'";
+            List<String> fields = new ArrayList<>();
+            while (lineData.length() > 0) {
+                String start = lineData.substring(0, 1);
+                int endIndex = lineData.indexOf(splitCode);
+                if (start.equals(doubleQuotes)) {
+                    int splitIndex = lineData.indexOf(doubleQuotes + splitCode);
+                    endIndex = splitIndex > -1 ? splitIndex + 1 : endIndex;
+                } else if (start.equals(apostrophe)) {
+                    int splitIndex = lineData.indexOf(apostrophe + splitCode);
+                    endIndex = splitIndex > -1 ? splitIndex + 1 : endIndex;
+                }
+                if (endIndex == -1) {
+                    fields.add(lineData);
+                    break;
+                } else {
+                    fields.add(lineData.substring(0, endIndex));
+                    lineData = lineData.substring(endIndex + 1);
+                }
+            }
+            return fields.toArray(new String[fields.size()]);
         }
         return null;
     }
@@ -184,7 +239,16 @@ public class ConvertServiceImpl implements ConvertService {
     public Route getRoute(String lineData) {
         if (!StringUtils.isEmpty(lineData)) {
             String[] fieldsData = lineData.split(",");
-            if (null != fieldsData && fieldsData.length == 9) {
+            if (null != fieldsData && fieldsData.length >= 9) {
+                if (fieldsData.length > 8) {
+                    String[] formatValue = getFieldsData(lineData);
+                    if (null != formatValue && formatValue.length == 9) {
+                        fieldsData = formatValue;
+                    } else {
+                        //问题数据
+                        return null;
+                    }
+                }
                 Route route = new Route();
                 route.setAirline(fieldsData[0]);
                 route.setAirlineId(fieldsData[1]);
@@ -196,6 +260,9 @@ public class ConvertServiceImpl implements ConvertService {
                 route.setStops(fieldsData[7]);
                 route.setEquipment(fieldsData[8]);
                 return route;
+            } else {
+                //问题数据
+                return null;
             }
         }
         return null;
