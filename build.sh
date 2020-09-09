@@ -1,6 +1,6 @@
 #!/bin/bash
 
-local arr_boots=("lucene-boot");
+local arr_boots=("lucene-boot" "lucene^boot");
 
 for var in ${arr_boots[@]}
 do
